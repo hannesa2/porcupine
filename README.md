@@ -828,74 +828,57 @@ There are two approaches for integrating Porcupine into an iOS application.
 
 #### High-Level API
 
-[PorcupineManager](/binding/ios/PorcupineManager.swift) manages audio recording, passing it into Porcupine, and invoking
-the user-provided detection callback.
-
+[PorcupineManager](/binding/ios/PorcupineManager.swift) provides a high-level API that takes care of audio recording and wake word detection. This class is the quickest way to get started.
 ```swift
-let modelPath: String = ... // Available at lib/common/porcupine_params.pv
-let keywordPaths: [String] = ["/path/to/keyword/file/a", "/path/to/keyword/file/b"]
-let sensitivities: [Float32] = [0.35, 0.64]
-let keywordCallback: ((Int32) -> Void) = { keywordIndex in
-    // Insert detection event logic
-}
+import Porcupine
 
-let manager = try PorcupineManager(
-    modelPath: modelPath,
-    keywordPaths: keywordPaths,
-    sensitivities: sensitivities
-    onDetection: keywordCallback)
+do {
+    PorcupineManager manager = try PorcupineManager(
+        keyword: Porcupine.BuiltInKeyword.picovoice,       
+        onDetection: { keywordIndex in
+                if keywordIndex == 0 {
+                    // wake word 0 detected!
+                }                
+            })
+} catch { }
 ```
 
-When initialized, input audio can be monitored using `manager.start()`. When done be sure to stop the manager using
-`manager.stop()`.
+When initialized, input audio can be monitored using `manager.start()`. Stop the manager using by invoking
+`manager.stop()`. When done you can release its resources using `manager.delete()`.
 
-#### Direct
+#### Low-Level API
 
-Porcupine is shipped as a precompiled ANSI C library and can directly be used in Swift using module maps. It can be
-initialized to detect multiple wake words concurrently using:
+[Porcupine](/binding/ios/Porcupine.swift) provides low-level access to the wake word engine for those who want to incorporate wake word detection into a already existing audio processing pipeline.
 
 ```swift
-let modelPath: String = ... // Available at lib/common/porcupine_params.pv
-let keywordPaths: [String] = ["/path/to/keyword/file/a", "/path/to/keyword/file/b"]
-let sensitivities: [Float32] = [0.35, 0.64]
+import Porcupine
 
-var handle: OpaquePointer?
-let status = pv_porcupine_init(
-    modelPath,
-    Int32(keywordFilePaths.count),
-    keywordPaths.map{ UnsafePointer(strdup($0)) },
-    sensitivities,
-    &handle)
-if status != PV_STATUS_SUCCESS {
-    // error handling logic
-}
+do {
+    Porcupine porcupine = try Porcupine(
+        keywordPaths:["path/to/keyword/one.ppn", "path/to/keyword/two.ppn"],
+        modelPath: "path/to/model/file.pv",
+        sensitivities: [0.7, 0.35])
+} catch { }
 ```
 
-Then `handle` can be used to monitor incoming audio stream.
+Once initialized, `porcupine` can be used to monitor incoming audio.
 
 ```swift
-func getNextAudioFrame() -> UnsafeMutablePointer<Int16> {
-    //
-}
+func getNextAudioFrame() -> [Int16] { /*...*/}
 
 while true {
-    let pcm = getNextAudioFrame()
-    var keyword_index: Int32 = -1
-
-    let status = pv_porcupine_process(handle, pcm, &keyword_index)
-    if status != PV_STATUS_SUCCESS {
-        // error handling logic
-    }
-    if keyword_index >= 0 {
-        // detection event logic/callback
-    }
+    do {
+        let keywordIndex = try porcupine.process(getNextAudioFrame())
+        if keywordIndex >= 0 {
+            // .. detection made!
+        }
+    } catch { }
 }
 ```
 
-When finished, release the resources via
-
+Once you're done with Porcupine you can opt to release its native resources rather than waiting for the garbage collector:
 ```swift
-pv_porcupine_delete(handle)
+porcupine.delete();
 ```
 
 ### JavaScript
