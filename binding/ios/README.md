@@ -139,11 +139,13 @@ func getNextAudioFrame() -> [Int16] {
     return audioFrame;
 }
 
-while true {    
-    let keywordIndex = porcupine.process(getNextAudioFrame())
-    if keywordIndex >= 0 {
-        // .. detection made!
-    }
+while true {
+    do {
+        let keywordIndex = porcupine.process(getNextAudioFrame())
+        if keywordIndex >= 0 {
+            // .. detection made!
+        }
+    } catch { }
 }
 ```
 
