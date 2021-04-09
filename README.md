@@ -866,13 +866,11 @@ Once initialized, `porcupine` can be used to monitor incoming audio.
 ```swift
 func getNextAudioFrame() -> [Int16] { /*...*/}
 
-while true {
-    do {
-        let keywordIndex = try porcupine.process(getNextAudioFrame())
-        if keywordIndex >= 0 {
-            // .. detection made!
-        }
-    } catch { }
+while true {    
+    let keywordIndex = porcupine.process(getNextAudioFrame())
+    if keywordIndex >= 0 {
+        // .. detection made!
+    }
 }
 ```
 
